@@ -1,13 +1,13 @@
 const Article = require("../models/Article");
-const {validateArticle} = require("../utils/utils")
-
+const { validateArticle } = require("../utils/utils");
+const fs = require("fs");
 
 const createArticle = async (req, res) => {
   let parameters = req.body;
 
   try {
     validateArticle(parameters);
-    
+
     const article = new Article(parameters);
 
     await article.save();
@@ -17,7 +17,7 @@ const createArticle = async (req, res) => {
       message: "Article saved successfully",
       article: article,
     });
-} catch (error) {
+  } catch (error) {
     console.error("Error:", error);
     return res.status(400).json({
       status: "error",
@@ -110,7 +110,6 @@ const editArticle = async (req, res) => {
   let id = req.params.id;
   let parameters = req.body;
 
-
   try {
     validateArticle(parameters);
     let article = await Article.findOneAndUpdate({ _id: id }, parameters, {
@@ -138,10 +137,49 @@ const editArticle = async (req, res) => {
   }
 };
 
+const uploadFile = async (req, res) => {
+  //configurar multer
+  //recoger fichero de imagen
+  if (!req.file && !req.files) {
+    return res.status(404).json({
+      status: "Error",
+      message: "Peticion invalida",
+    });
+  } //nombre del archivo
+  let nameFile = req.file.originalname;
+  //extension archivo
+  let fileSplit = nameFile.split(".");
+  let fileExtension = fileSplit[1];
+
+  //comporbar extension correcta
+
+  if (
+    fileExtension != "png" &&
+    fileExtension != "jpg" &&
+    fileExtension != "jpeg" &&
+    fileExtension != "gif"
+  ) {
+    fs.unlink(req.file.path, (error) => {
+      return res.status(400).json({
+        status: "Error",
+        message: "Invalid image",
+      });
+    });
+  } else {
+    return res.status(200).json({
+      message: "yay",
+      fileExtension,
+      files: req.file,
+    });
+  }
+  //actualizar articulo
+};
+
 module.exports = {
   createArticle,
   getArticles,
   getArticleById,
   deleteArticle,
   editArticle,
+  uploadFile,
 };
