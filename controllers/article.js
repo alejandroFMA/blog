@@ -1,6 +1,7 @@
 const Article = require("../models/Article");
 const { validateArticle } = require("../utils/utils");
 const fs = require("fs");
+const path = require("path");
 
 const createArticle = async (req, res) => {
   let parameters = req.body;
@@ -151,29 +152,95 @@ const uploadFile = async (req, res) => {
   let fileSplit = nameFile.split(".");
   let fileExtension = fileSplit[1];
 
-  //comporbar extension correcta
-
-  if (
-    fileExtension != "png" &&
-    fileExtension != "jpg" &&
-    fileExtension != "jpeg" &&
-    fileExtension != "gif"
-  ) {
-    fs.unlink(req.file.path, (error) => {
-      return res.status(400).json({
-        status: "Error",
-        message: "Invalid image",
+  try {
+    if (
+      fileExtension != "png" &&
+      fileExtension != "jpg" &&
+      fileExtension != "jpeg" &&
+      fileExtension != "gif"
+    ) {
+      fs.unlink(req.file.path, (error) => {
+        return res.status(400).json({
+          status: "Error",
+          message: "Invalid image",
+        });
       });
-    });
-  } else {
-    return res.status(200).json({
-      message: "yay",
-      fileExtension,
-      files: req.file,
+    } else {
+      let id = req.params.id;
+      let article = await Article.findOneAndUpdate(
+        { _id: id },
+        { image: req.file.filename },
+        {
+          new: true,
+        }
+      );
+
+      if (article) {
+        return res.status(200).json({
+          status: "success",
+          article,
+          message: "Article Image updated succesfully",
+          file: req.file,
+        });
+      }
+    }
+  } catch (error) {
+    console.error("Error:", error);
+    return res.status(500).json({
+      status: "error",
+      message: "Error updating the article image",
     });
   }
-  //actualizar articulo
 };
+
+const getImage = async (req, res) => {
+  let file = req.params.file;
+  let dir = "./images/articles/" + file;
+  fs.access(dir, (error) => {
+    if (!error) {
+      return res.sendFile(path.resolve(dir));
+    } else {
+      return res.status(404).jsdon({
+        status: "error",
+        messsage: "Image does not exist",
+      });
+    }
+  });
+};
+
+const search = async (req, res) => {
+
+    let query = req.params.query
+try{
+    let articles = await Article.find({"$or": [
+        {title:{"$regex": query, "$options": "i"}},
+        {content:{"$regex": query, "$options": "i"}}
+    ]})
+    .sort({ date: -1 })
+    .exec();
+
+    
+    if (articles.length === 0) {
+        return res.status(404).json({
+            status: "error",
+            message: "No articles found matching the query",
+        });
+    }
+
+    return res.status(200).json({
+      status: "success",
+      counter: articles.length,
+      articles,
+    });
+  } catch (error) {
+    console.error("Error:", error);
+    return res.status(500).json({
+      status: "error",
+      message: "Error fetching articles",
+    });
+  }
+};
+
 
 module.exports = {
   createArticle,
@@ -182,4 +249,6 @@ module.exports = {
   deleteArticle,
   editArticle,
   uploadFile,
+  getImage,
+  search
 };
